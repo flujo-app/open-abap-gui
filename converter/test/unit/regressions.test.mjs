@@ -99,6 +99,14 @@ test("the post-emit gate reports field symbols used without a declaration", () =
     "  ENDLOOP.",
     "ENDMETHOD.",
   ].join("\n")), []);
+
+  // A backquoted string literal is text too, with `` as its escaped quote.
+  assert.deepEqual(undeclaredFieldSymbols([
+    "METHOD run.",
+    "  WRITE: / `usage: -allow-read <dir>`.",
+    "  WRITE: / `a `` <b>`, <ls_used>.",
+    "ENDMETHOD.",
+  ].join("\n")), [["LS_USED", 3]]);
 });
 
 test("resolves abapGit repository-layout includes without a custom resolver", async () => {

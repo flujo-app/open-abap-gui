@@ -49,7 +49,7 @@ export function undeclaredFieldSymbols(source) {
   let declaring = false;
   for (let index = 0; index < lines.length; index++) {
     if (/^\s*\*/.test(lines[index])) continue;
-    const code = withoutLiteralTemplateText(lines[index].replace(/'(?:''|[^'])*'/g, " ")).split('"')[0];
+    const code = withoutLiteralTemplateText(lines[index].replace(/'(?:''|[^'])*'|`(?:``|[^`])*`/g, " ")).split('"')[0];
     for (const match of code.matchAll(/\bFIELD-SYMBOL\s*\(\s*<([A-Z][A-Z0-9_]*)>\s*\)/gi)) declared.add(match[1].toUpperCase());
     // A chained FIELD-SYMBOLS declaration keeps declaring across lines until
     // the statement is terminated.
