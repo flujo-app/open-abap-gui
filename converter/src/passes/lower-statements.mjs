@@ -1,5 +1,5 @@
 import { lowerCompatibilityFunction } from "../function-modules.mjs";
-import { parsesAsStatement } from "../parser.mjs";
+import { parsesAsStatement, parseSource } from "../parser.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
@@ -870,6 +870,27 @@ function parseFormat(raw, context) {
 
 function parseMessage(raw, context) {
   const body = stripPeriod(raw).replace(/^MESSAGE\s+/i, "");
+  // Read the long form from the parser: keywords in message operands or
+  // literals must not be mistaken for TYPE, NUMBER, WITH or DISPLAY LIKE.
+  // The lowering IR deliberately omits parser nodes. Reparse only this form
+  // after local-call rewriting, so the operands match the text being emitted.
+  const node = /^ID\s/i.test(body) ? parseSource(raw).units[0]?.statements[0]?.node : undefined;
+  const children = node?.getChildren?.() ?? [];
+  const referenceNode = children.find((child) => child.get?.()?.constructor?.name === "MessageSource");
+  const referenceChildren = referenceNode?.getChildren?.() ?? [];
+  if (referenceChildren[0]?.concatTokens?.().toUpperCase() === "ID") {
+    const values = referenceChildren.filter((child) => child.get?.()?.constructor?.name === "SimpleSource3");
+    if (values.length === 3) {
+      const expression = (child) => valueExpression(child.concatTokens(), context);
+      const fields = [`id = ${expression(values[0])}`, `type = ${expression(values[1])}`,
+        `number = ${expression(values[2])}`];
+      children.filter((child) => child.get?.()?.constructor?.name === "MessageSourceSource")
+        .forEach((child, index) => fields.push(`v${index + 1} = ${expression(child)}`));
+      const display = children.find((child) => child.get?.()?.constructor?.name === "Source");
+      if (display) fields.push(`display_like = ${expression(display)}`);
+      return `io_session->message( VALUE #( ${fields.join(" ")} ) ).`;
+    }
+  }
   // DISPLAY LIKE is an addition that sits after TYPE (or after the message
   // operands). Detect it once and strip it from the text/operand payload so it
   // is never copied into the emitted string template.
@@ -882,7 +903,7 @@ function parseMessage(raw, context) {
   if (text) {
     return `io_session->message( VALUE #( type = ${typeExpr} text = ${text}${displayField} ) ).`;
   }
-  const messageReference = /^([AEISWX])(\d{3})\(([A-Z0-9_]+)\)/i.exec(body);
+  const messageReference = /^([AEISWX])(\d{3})\(([^()\s]+)\)/i.exec(body);
   if (messageReference) {
     const operands = splitMessageOperands(withPart(body));
     const fields = [

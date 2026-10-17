@@ -2,6 +2,12 @@ CLASS cl_gui_cfw DEFINITION PUBLIC FRIENDS zcl_gg_host_dynpro zcl_gg_host_runtim
   PUBLIC SECTION.
     CONSTANTS rc_noevent TYPE i VALUE -1.
 
+    CLASS-EVENTS flush_error
+      EXPORTING
+        VALUE(dynpro_program) TYPE syrepid
+        VALUE(dynpro_number)  TYPE sydynnr
+        VALUE(situation)      TYPE i.
+
     CLASS-METHODS compute_pixel_from_metric
       IMPORTING
         x_or_y     TYPE c

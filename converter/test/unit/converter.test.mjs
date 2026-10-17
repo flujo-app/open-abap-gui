@@ -2302,6 +2302,32 @@ test("assumes message classes are known", async () => {
   assert.deepEqual(result.diagnostics, []);
 });
 
+test("preserves special message-class names and long-form message operands", async () => {
+  const result = await convertProgram({
+    source: [
+      "REPORT zmessage_operands.",
+      "DATA lv_id TYPE c LENGTH 20.",
+      "DATA lv_type TYPE c LENGTH 1.",
+      "DATA lv_number TYPE n LENGTH 3.",
+      "DATA lv_value TYPE string.",
+      "START-OF-SELECTION.",
+      "MESSAGE e001(z#) WITH 'TYPE NUMBER'.",
+      "MESSAGE i002(/demo/msg) WITH 'example'.",
+      "MESSAGE ID lv_id TYPE lv_type NUMBER lv_number",
+      "  WITH lv_value 'DISPLAY LIKE' 'WITH' 'NUMBER' DISPLAY LIKE lv_type.",
+      "MESSAGE ID sy-msgid TYPE 'S' NUMBER sy-msgno",
+      "  WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4 DISPLAY LIKE 'E'.",
+    ].join("\n"),
+    filename: "zmessage_operands.prog.abap",
+  });
+  assert.equal(result.supported, true, JSON.stringify(result.diagnostics));
+  assert.match(result.classSource, /id = 'Z#' number = '001' v1 = 'TYPE NUMBER'/);
+  assert.match(result.classSource, /id = '\/DEMO\/MSG' number = '002'/);
+  assert.match(result.classSource, /id = lv_id type = lv_type number = lv_number v1 = lv_value v2 = 'DISPLAY LIKE' v3 = 'WITH' v4 = 'NUMBER' display_like = lv_type/);
+  assert.match(result.classSource, /id = sy-msgid type = 'S' number = sy-msgno v1 = sy-msgv1 v2 = sy-msgv2 v3 = sy-msgv3 v4 = sy-msgv4 display_like = 'E'/);
+  assert.doesNotMatch(result.classSource, /ia_text\s*=\s*(?:ID\b|e001\()/i);
+});
+
 test("drops DEFERRED and LOAD forward declarations", async () => {
   const result = await convertProgram({
     source: [
